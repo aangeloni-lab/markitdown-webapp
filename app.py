@@ -1,4 +1,5 @@
 import os
+import traceback
 import tempfile
 from pathlib import Path
 from flask import Flask, request, send_file, render_template_string
@@ -63,9 +64,9 @@ HTML = """
   <h1>MarkItDown Converter</h1>
   <p class="sub">Converti documenti e immagini in Markdown per LLM</p>
   <div id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <div class="icon">📄</div>
+    <div class="icon">&#128196;</div>
     <div class="label">Trascina i file qui oppure clicca per selezionarli</div>
-    <div class="formats">PDF · DOCX · PPTX · XLSX · EPUB · HTML · TXT · CSV · JPG · PNG · HEIC</div>
+    <div class="formats">PDF &middot; DOCX &middot; PPTX &middot; XLSX &middot; EPUB &middot; HTML &middot; TXT &middot; CSV &middot; JPG &middot; PNG &middot; HEIC</div>
   </div>
   <input type="file" id="file-input" multiple>
   <div id="status"></div>
@@ -92,15 +93,18 @@ HTML = """
           const res = await fetch('/convert', { method: 'POST', body: formData });
           if (res.ok) {
             const blob = await res.blob();
-            const mdName = f.name.replace(/\.[^.]+$/, '') + '.md';
+            const mdName = f.name.replace(/[.][^.]+$/, '') + '.md';
             convertedFiles.push({ name: mdName, blob });
             row.querySelector('.badge').className = 'badge ok';
-            row.querySelector('.badge').textContent = '✓ Convertito';
+            row.querySelector('.badge').textContent = 'Convertito';
           } else {
+            const errText = await res.text();
+            console.error('Errore conversione:', errText);
             row.querySelector('.badge').className = 'badge err';
             row.querySelector('.badge').textContent = 'Errore';
           }
-        } catch {
+        } catch(e) {
+          console.error('Errore fetch:', e);
           row.querySelector('.badge').className = 'badge err';
           row.querySelector('.badge').textContent = 'Errore';
         }
@@ -138,23 +142,26 @@ def convert():
     f = request.files.get('file')
     if not f:
         return 'Nessun file ricevuto', 400
-    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(f.filename).suffix) as tmp:
+    suffix = Path(f.filename).suffix
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         f.save(tmp.name)
         tmp_path = tmp.name
     try:
+        print(f"[convert] Avvio conversione: {f.filename}", flush=True)
         result = md.convert(tmp_path)
+        print(f"[convert] Conversione OK, testo: {len(result.text_content)} caratteri", flush=True)
         out = tempfile.NamedTemporaryFile(delete=False, suffix='.md', mode='w', encoding='utf-8')
         out.write(result.text_content)
         out.close()
         md_name = Path(f.filename).stem + '.md'
         return send_file(out.name, as_attachment=True, download_name=md_name, mimetype='text/markdown')
     except Exception as e:
-        import traceback
+        print(f"[convert] ERRORE: {e}", flush=True)
         traceback.print_exc()
         return str(e), 500
     finally:
         os.unlink(tmp_path)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5050))
+    port = int(os.environ.get('PORT', 8080))
     app.run(debug=False, host='0.0.0.0', port=port)
