@@ -3,9 +3,11 @@ import tempfile
 from pathlib import Path
 from flask import Flask, request, send_file, render_template_string
 from markitdown import MarkItDown
+from openai import OpenAI
 
 app = Flask(__name__)
-md = MarkItDown()
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+md = MarkItDown(llm_client=openai_client, llm_model="gpt-4o")
 
 HTML = """
 <!DOCTYPE html>
@@ -59,11 +61,11 @@ HTML = """
 </head>
 <body>
   <h1>MarkItDown Converter</h1>
-  <p class="sub">Converti documenti in Markdown per LLM</p>
+  <p class="sub">Converti documenti e immagini in Markdown per LLM</p>
   <div id="drop-zone" onclick="document.getElementById('file-input').click()">
     <div class="icon">📄</div>
     <div class="label">Trascina i file qui oppure clicca per selezionarli</div>
-    <div class="formats">PDF · DOCX · PPTX · XLSX · EPUB · HTML · TXT · CSV</div>
+    <div class="formats">PDF · DOCX · PPTX · XLSX · EPUB · HTML · TXT · CSV · JPG · PNG · HEIC</div>
   </div>
   <input type="file" id="file-input" multiple>
   <div id="status"></div>
