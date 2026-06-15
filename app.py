@@ -149,6 +149,8 @@ def convert():
         md_name = Path(f.filename).stem + '.md'
         return send_file(out.name, as_attachment=True, download_name=md_name, mimetype='text/markdown')
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return str(e), 500
     finally:
         os.unlink(tmp_path)
